@@ -26,6 +26,12 @@ def show():
 
     st.subheader("My Saved Ideas")
     
+    # DEBUG INFO - Remove this later
+    with st.expander("🔍 Debug Info", expanded=False):
+        st.write(f"Query params: {dict(st.query_params)}")
+        st.write(f"Saved ideas in session: {st.session_state.saved_ideas}")
+        st.write(f"Number saved: {len(st.session_state.saved_ideas)}")
+    
     # Check if user has saved any ideas
     if not st.session_state.saved_ideas:
         st.info("💡 You haven't saved any ideas yet. Go to the Home page to browse and save ideas you like!")
