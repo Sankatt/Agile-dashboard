@@ -22,6 +22,9 @@ def get_selected_id(sel):
 def _init_state():
     if "home_docs" not in st.session_state:
         st.session_state.home_docs = make_fake_docs(35)
+    # Initialize saved ideas list for current user
+    if "saved_ideas" not in st.session_state:
+        st.session_state.saved_ideas = []
 
 def show():
     _init_state()
@@ -99,23 +102,37 @@ def show():
         height=520,
         theme="balham"
     )
-    # ---- Accion bar out of the iframe
+    # ---- Action bar out of the iframe
     sel = resp.get("selected_rows", [])
     selected_id = get_selected_id(sel)
 
-    c1, c2, c3 = st.columns([1,1,1])
+    # Check if the selected idea is already saved
+    is_saved = selected_id in st.session_state.saved_ideas if selected_id else False
+
+    c1, c2, c3, c4 = st.columns([1,1,1,1])
     with c1:
         st.button("🔎 Open", disabled=selected_id is None,
                 on_click=lambda: (_ for _ in ()).throw(SystemExit))  # placeholder 
     with c2:
+        # Save/Unsave button
+        if is_saved:
+            if st.button("💔 Unsave", disabled=selected_id is None):
+                st.session_state.saved_ideas.remove(selected_id)
+                st.success("Idea removed from your personal list!")
+                st.rerun()
+        else:
+            if st.button("❤️ Save", disabled=selected_id is None):
+                if selected_id not in st.session_state.saved_ideas:
+                    st.session_state.saved_ideas.append(selected_id)
+                    st.success("✅ New idea saved to your personal list!")
+                st.rerun()
+    with c3:
         if st.button("✏️ Edit selected", disabled=selected_id is None):
             st.query_params["page"] = "My Ideas"
             st.query_params["edit_id"] = str(selected_id)
             st.rerun()
-    with c3:
+    with c4:
         if st.button("🗑 Delete", disabled=selected_id is None):
             st.query_params["page"] = "Home"
             st.query_params["delete_id"] = str(selected_id)
             st.rerun()
-
-  
