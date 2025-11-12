@@ -23,8 +23,16 @@ def _init_state():
     if "home_docs" not in st.session_state:
         st.session_state.home_docs = make_fake_docs(35)
     # Initialize saved ideas list for current user
+    # Try to restore from query params
     if "saved_ideas" not in st.session_state:
-        st.session_state.saved_ideas = []
+        saved_param = st.query_params.get("saved", "")
+        if saved_param:
+            try:
+                st.session_state.saved_ideas = [int(x) for x in saved_param.split(",") if x]
+            except:
+                st.session_state.saved_ideas = []
+        else:
+            st.session_state.saved_ideas = []
 
 def show():
     _init_state()
@@ -118,12 +126,19 @@ def show():
         if is_saved:
             if st.button("💔 Unsave", disabled=selected_id is None):
                 st.session_state.saved_ideas.remove(selected_id)
+                # Update query params
+                if st.session_state.saved_ideas:
+                    st.query_params["saved"] = ",".join(map(str, st.session_state.saved_ideas))
+                else:
+                    st.query_params.pop("saved", None)
                 st.success("Idea removed from your personal list!")
                 st.rerun()
         else:
             if st.button("❤️ Save", disabled=selected_id is None):
                 if selected_id not in st.session_state.saved_ideas:
                     st.session_state.saved_ideas.append(selected_id)
+                    # Persist to query params
+                    st.query_params["saved"] = ",".join(map(str, st.session_state.saved_ideas))
                     st.success("✅ New idea saved to your personal list!")
                 st.rerun()
     with c3:
