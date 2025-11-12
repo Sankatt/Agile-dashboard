@@ -2,7 +2,7 @@ import streamlit as st
 from styles import dashboard as dashboard_styles
 from pages.header import show_header
 from pages import home as home_page
-from pages import my_ideas as my_ideas_page
+from pages import _my_ideas as my_ideas_page
 
 def _qp_get(name, default=None):
     v = st.query_params.get(name, default)
