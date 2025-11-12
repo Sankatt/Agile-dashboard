@@ -1,7 +1,19 @@
-# pages/my_ideas.py
+# pages/_my_ideas.py
 import streamlit as st
 import pandas as pd
 from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode, JsCode
+import streamlit.components.v1 as components
+
+def get_saved_from_browser():
+    """Get saved ideas from browser localStorage"""
+    saved_html = """
+    <script>
+        const saved = localStorage.getItem('saved_ideas') || '[]';
+        const savedArray = JSON.parse(saved);
+        window.parent.postMessage({type: 'saved_ideas', data: savedArray}, '*');
+    </script>
+    """
+    components.html(saved_html, height=0)
 
 def _init_state():
     # Initialize home_docs if it doesn't exist
@@ -9,8 +21,7 @@ def _init_state():
         from data.fake_docs import make_fake_docs
         st.session_state.home_docs = make_fake_docs(35)
     
-    # Initialize saved_ideas if it doesn't exist
-    # Try to restore from query params if available
+    # Initialize saved_ideas from localStorage via query param fallback
     if "saved_ideas" not in st.session_state:
         saved_param = st.query_params.get("saved", "")
         if saved_param:
@@ -26,7 +37,44 @@ def show():
 
     st.subheader("My Saved Ideas")
     
-    # DEBUG INFO - Remove this later
+    # Read from localStorage and update session
+    saved_html = """
+    <script>
+    (function() {
+        try {
+            const saved = localStorage.getItem('saved_ideas');
+            if (saved) {
+                const savedArray = JSON.parse(saved);
+                if (savedArray.length > 0) {
+                    // Update URL with saved ideas
+                    const url = new URL(window.location);
+                    url.searchParams.set('saved', savedArray.join(','));
+                    window.history.replaceState({}, '', url);
+                    // Force reload to update session state
+                    if (!url.searchParams.get('loaded')) {
+                        url.searchParams.set('loaded', '1');
+                        window.location.href = url.toString();
+                    }
+                }
+            }
+        } catch(e) {
+            console.error('Error reading saved ideas:', e);
+        }
+    })();
+    </script>
+    """
+    components.html(saved_html, height=0)
+    
+    # Check for loaded flag and restore from query param
+    if st.query_params.get("loaded") == "1":
+        saved_param = st.query_params.get("saved", "")
+        if saved_param:
+            try:
+                st.session_state.saved_ideas = [int(x) for x in saved_param.split(",") if x]
+            except:
+                pass
+    
+    # DEBUG INFO
     with st.expander("🔍 Debug Info", expanded=False):
         st.write(f"Query params: {dict(st.query_params)}")
         st.write(f"Saved ideas in session: {st.session_state.saved_ideas}")
@@ -51,6 +99,13 @@ def show():
         st.warning("⚠️ Your saved ideas are not available. They may have been deleted.")
         if st.button("Clear saved ideas list"):
             st.session_state.saved_ideas = []
+            # Clear from localStorage too
+            clear_html = """
+            <script>
+            localStorage.removeItem('saved_ideas');
+            </script>
+            """
+            components.html(clear_html, height=0)
             st.rerun()
         return
     
@@ -122,7 +177,6 @@ def show():
     
     with c2:
         if st.button("✏️ Edit", disabled=selected_id is None):
-            # Navigate to edit page with the idea ID
             st.query_params["page"] = "edit_idea"
             st.query_params["edit_id"] = str(selected_id)
             st.rerun()
@@ -131,6 +185,14 @@ def show():
         if st.button("💔 Remove from Saved", disabled=selected_id is None):
             if selected_id in st.session_state.saved_ideas:
                 st.session_state.saved_ideas.remove(selected_id)
+                # Update localStorage
+                remove_html = f"""
+                <script>
+                const savedIds = {st.session_state.saved_ideas};
+                localStorage.setItem('saved_ideas', JSON.stringify(savedIds));
+                </script>
+                """
+                components.html(remove_html, height=0)
                 st.success("✅ Idea removed from your saved list!")
                 st.rerun()
     

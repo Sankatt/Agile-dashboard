@@ -3,6 +3,7 @@ import streamlit as st
 import pandas as pd
 from datetime import date
 from data.fake_docs import make_fake_docs, STATUSES
+import streamlit.components.v1 as components
 
 from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode, JsCode
 
@@ -126,6 +127,14 @@ def show():
         if is_saved:
             if st.button("💔 Unsave", disabled=selected_id is None):
                 st.session_state.saved_ideas.remove(selected_id)
+                # Update localStorage
+                unsave_html = f"""
+                <script>
+                const savedIds = {st.session_state.saved_ideas};
+                localStorage.setItem('saved_ideas', JSON.stringify(savedIds));
+                </script>
+                """
+                components.html(unsave_html, height=0)
                 # Update query params
                 if st.session_state.saved_ideas:
                     st.query_params["saved"] = ",".join(map(str, st.session_state.saved_ideas))
@@ -137,6 +146,14 @@ def show():
             if st.button("❤️ Save", disabled=selected_id is None):
                 if selected_id not in st.session_state.saved_ideas:
                     st.session_state.saved_ideas.append(selected_id)
+                    # Save to localStorage
+                    save_html = f"""
+                    <script>
+                    const savedIds = {st.session_state.saved_ideas};
+                    localStorage.setItem('saved_ideas', JSON.stringify(savedIds));
+                    </script>
+                    """
+                    components.html(save_html, height=0)
                     # Persist to query params
                     st.query_params["saved"] = ",".join(map(str, st.session_state.saved_ideas))
                     st.success("✅ New idea saved to your personal list!")
