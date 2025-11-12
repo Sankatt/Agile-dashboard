@@ -21,64 +21,65 @@ def _init_state():
         from data.fake_docs import make_fake_docs
         st.session_state.home_docs = make_fake_docs(35)
     
-    # Initialize saved_ideas from localStorage via query param fallback
+    # ALWAYS check query param first (from localStorage redirect)
+    saved_param = st.query_params.get("saved", "")
+    if saved_param:
+        try:
+            st.session_state.saved_ideas = [int(x) for x in saved_param.split(",") if x]
+            return  # Found saved ideas in URL, we're done
+        except:
+            pass
+    
+    # If no query param, initialize empty
     if "saved_ideas" not in st.session_state:
-        saved_param = st.query_params.get("saved", "")
-        if saved_param:
-            try:
-                st.session_state.saved_ideas = [int(x) for x in saved_param.split(",") if x]
-            except:
-                st.session_state.saved_ideas = []
-        else:
-            st.session_state.saved_ideas = []
+        st.session_state.saved_ideas = []
 
 def show():
     _init_state()
 
     st.subheader("My Saved Ideas")
     
-    # Read from localStorage and update session
-    saved_html = """
-    <script>
-    (function() {
-        try {
+    # Only try to load from localStorage if session state is empty and no query param
+    if not st.session_state.saved_ideas and not st.query_params.get("saved"):
+        # Try to load from localStorage by injecting script
+        load_script = """
+        <script>
+        (function() {
             const saved = localStorage.getItem('saved_ideas');
             if (saved) {
                 const savedArray = JSON.parse(saved);
                 if (savedArray.length > 0) {
-                    // Update URL with saved ideas
                     const url = new URL(window.location);
                     url.searchParams.set('saved', savedArray.join(','));
-                    window.history.replaceState({}, '', url);
-                    // Force reload to update session state
-                    if (!url.searchParams.get('loaded')) {
-                        url.searchParams.set('loaded', '1');
-                        window.location.href = url.toString();
-                    }
+                    window.location.href = url.toString();
                 }
             }
-        } catch(e) {
-            console.error('Error reading saved ideas:', e);
-        }
-    })();
-    </script>
-    """
-    components.html(saved_html, height=0)
-    
-    # Check for loaded flag and restore from query param
-    if st.query_params.get("loaded") == "1":
-        saved_param = st.query_params.get("saved", "")
-        if saved_param:
-            try:
-                st.session_state.saved_ideas = [int(x) for x in saved_param.split(",") if x]
-            except:
-                pass
+        })();
+        </script>
+        """
+        components.html(load_script, height=0)
     
     # DEBUG INFO
-    with st.expander("🔍 Debug Info", expanded=False):
+    with st.expander("🔍 Debug Info", expanded=True):
         st.write(f"Query params: {dict(st.query_params)}")
         st.write(f"Saved ideas in session: {st.session_state.saved_ideas}")
         st.write(f"Number saved: {len(st.session_state.saved_ideas)}")
+        
+        # Add button to manually check localStorage
+        if st.button("🔄 Force Load from Browser Storage"):
+            st.markdown("""
+            <script>
+            const saved = localStorage.getItem('saved_ideas');
+            if (saved) {
+                alert('Found in storage: ' + saved);
+                const url = new URL(window.location);
+                url.searchParams.set('saved', JSON.parse(saved).join(','));
+                window.location.href = url.toString();
+            } else {
+                alert('No saved ideas in browser storage');
+            }
+            </script>
+            """, unsafe_allow_html=True)
     
     # Check if user has saved any ideas
     if not st.session_state.saved_ideas:
